@@ -19,10 +19,28 @@ Sharing finances is a frequent source of tension. Based on recent consumer surve
 Teilr is built on a robust, production-ready Java ecosystem:
 - **Backend Framework:** Java 21 & Spring Boot 3.5.x
 - **Security:** Spring Security (Form-based authentication, BCrypt password hashing, email verification)
-- **Database:** H2 (In-Memory for Dev) / MySQL (Persistent via profile)
-- **ORM / Persistence:** Spring Data JPA & Hibernate
+- **Database:** H2 (In-Memory, Dev) / PostgreSQL via [Supabase](https://supabase.com) (Cloud, Production)
+- **ORM / Persistence:** Spring Data JPA & Hibernate (PostgreSQL dialect in production)
 - **Frontend / Views:** Thymeleaf & Vanilla CSS/JS
+- **Email:** Gmail SMTP via Spring Mail (account `teilr.webapps@gmail.com`)
+- **Tunneling:** [ngrok](https://ngrok.com) (exposes local server for public HTTPS access; sets `APP_BASE_URL` for email verification links)
 - **Build Tool:** Maven Wrapper (`mvnw`)
+
+## Environment Configuration (.env)
+
+The project uses the following environment variables (example `.env`):
+
+```dotenv
+MAIL_USERNAME=teilr.webapps@gmail.com
+MAIL_PASSWORD=your_gmail_app_password
+APP_BASE_URL=https://<random>.ngrok-free.dev
+DB_URL=jdbc:postgresql://db.<project>.supabase.co:5432/postgres?sslmode=require
+DB_USERNAME=postgres
+DB_PASSWORD=your_db_password
+DB_DIALECT=org.hibernate.dialect.PostgreSQLDialect
+```
+
+These values are loaded at runtime to configure email sending, public URL (via ngrok), and database connection. Ensure you replace placeholder passwords with your actual credentials.
 
 ## Architecture
 
@@ -31,25 +49,35 @@ flowchart TD
     classDef frontend fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px;
     classDef backend fill:#e8f5e9,stroke:#4caf50,stroke-width:2px;
     classDef database fill:#fce4ec,stroke:#e91e63,stroke-width:2px;
+    classDef config fill:#fff3e0,stroke:#ff9800,stroke-width:2px;
+    classDef external fill:#ede7f6,stroke:#673ab7,stroke-width:2px,stroke-dasharray:5 5;
 
     Client["Browser / Client"]:::frontend
-    
-    subgraph Spring_Boot_Application ["Spring Boot Application"]
-        Controllers["Spring MVC Controllers <br/> (Auth, Users, Friendships, Groups)"]:::backend
-        Services["Business Logic Services <br/> (User, Mail, Friendship, Groups)"]:::backend
-        Repositories["Spring Data JPA Repositories"]:::backend
-        Views["Thymeleaf Templates"]:::frontend
-        
-        Controllers -->|Renders| Views
-        Controllers <--> Services
-        Services <--> Repositories
+    Ngrok["ngrok Tunnel <br/> (Public HTTPS → localhost:8080)"]:::external
+    Gmail["Gmail SMTP"]:::external
+    H2[("H2 In-Memory <br/> (Dev)")]:::database
+    Supabase[("MySQL / Supabase PostgreSQL <br/> (Production)")]:::database
+
+    subgraph App ["Spring Boot Application (localhost:8080)"]
+        Config["Config & Security <br/> SecurityConfig · GlobalControllerAdvice · GlobalExceptionHandler"]:::config
+        Controllers["Controllers <br/> Auth · User · Friendship · Group · Expense · View"]:::backend
+        Views["Thymeleaf Templates <br/> layout · home · profile · settings"]:::frontend
+        Services["Services <br/> User · Mail · Friendship · Group · GroupView · Expense"]:::backend
+        Persistence["JPA Entities & Repositories <br/> User · Friendship · Group · GroupMember <br/> Bill · ExpenseSplit · Settlement"]:::backend
+
+        Config -.->|"Secures & Advises"| Controllers
+        Controllers -->|"Renders (server-side)"| Views
+        Controllers <-->|"DTOs"| Services
+        Services <--> Persistence
     end
-    
-    DB[("Relational Database <br/> (H2 / MySQL)")]:::database
-    
-    Client <-->|HTTP Requests| Controllers
-    Client <-->|HTML/CSS| Views
-    Repositories <-->|JDBC/Hibernate| DB
+
+    Client <-->|"HTTP (dev)"| Controllers
+    Client <-->|"HTTPS (public)"| Ngrok
+    Ngrok <-->|"Forwards to localhost:8080"| Controllers
+    Services -->|"Verification email links (APP_BASE_URL)"| Ngrok
+    Services -->|"SMTP"| Gmail
+    Persistence <-->|"JDBC / Hibernate"| H2
+    Persistence <-->|"JDBC / Hibernate + SSL"| Supabase
 ```
 
 ## Features
