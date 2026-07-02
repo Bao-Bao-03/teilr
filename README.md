@@ -35,8 +35,8 @@ flowchart TD
     Client["Browser / Client"]:::frontend
     
     subgraph Spring_Boot_Application ["Spring Boot Application"]
-        Controllers["Spring MVC Controllers <br/> (Auth, Users, Friendships, Groups)"]:::backend
-        Services["Business Logic Services <br/> (User, Mail, Friendship, Groups)"]:::backend
+        Controllers["Spring MVC Controllers <br/> (Auth, Users, Friendships, Groups, Expenses)"]:::backend
+        Services["Business Logic Services <br/> (User, Mail, Friendship, Groups, Expenses)"]:::backend
         Repositories["Spring Data JPA Repositories"]:::backend
         Views["Thymeleaf Templates"]:::frontend
         
@@ -45,7 +45,7 @@ flowchart TD
         Services <--> Repositories
     end
     
-    DB[("Relational Database <br/> (H2 / MySQL)")]:::database
+    DB[("Relational Database <br/> (H2 / MySQL / PostgreSQL)")]:::database
     
     Client <-->|HTTP Requests| Controllers
     Client <-->|HTML/CSS| Views
