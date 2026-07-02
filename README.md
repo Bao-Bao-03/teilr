@@ -19,7 +19,7 @@ Sharing finances is a frequent source of tension. Based on recent consumer surve
 Teilr is built on a robust, production-ready Java ecosystem:
 - **Backend Framework:** Java 21 & Spring Boot 3.5.x
 - **Security:** Spring Security (Form-based authentication, BCrypt password hashing, email verification)
-- **Database:** H2 (In-Memory, Dev) / PostgreSQL via [Supabase](https://supabase.com) (Cloud, Production)
+- **Database:** H2 (In-Memory, Dev) / MySQL / PostgreSQL via [Supabase](https://supabase.com) (Cloud, Production)
 - **ORM / Persistence:** Spring Data JPA & Hibernate (PostgreSQL dialect in production)
 - **Frontend / Views:** Thymeleaf & Vanilla CSS/JS
 - **Email:** Gmail SMTP via Spring Mail (account `teilr.webapps@gmail.com`)
@@ -44,6 +44,7 @@ These values are loaded at runtime to configure email sending, public URL (via n
 
 ## Architecture
 
+
 ```mermaid
 flowchart TD
     classDef frontend fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px;
@@ -51,25 +52,35 @@ flowchart TD
     classDef database fill:#fce4ec,stroke:#e91e63,stroke-width:2px;
     classDef config fill:#fff3e0,stroke:#ff9800,stroke-width:2px;
     classDef external fill:#ede7f6,stroke:#673ab7,stroke-width:2px,stroke-dasharray:5 5;
-
-    Client["Browser / Client"]:::frontend
     
-    subgraph Spring_Boot_Application ["Spring Boot Application"]
-        Controllers["Spring MVC Controllers <br/> (Auth, Users, Friendships, Groups)"]:::backend
-        Services["Business Logic Services <br/> (User, Mail, Friendship, Groups)"]:::backend
-        Repositories["Spring Data JPA Repositories"]:::backend
-        Views["Thymeleaf Templates"]:::frontend
+    Client["Browser / Client"]:::frontend
+    Ngrok["ngrok Tunnel <br/> (Public HTTPS → localhost:8080)"]:::external
+    Gmail["Gmail SMTP"]:::external
+    H2[("H2 In-Memory <br/> (Dev)")]:::database
+    Supabase[("MySQL/Supabase PostgreSQL <br/> (Production)")]:::database
+    
+    subgraph App ["Spring Boot Application (localhost:8080)"]
+        Config["Config & Security <br/> SecurityConfig · GlobalControllerAdvice · GlobalExceptionHandler"]:::config
+        Controllers["Controllers <br/> Auth · User · Friendship · Group · Expense · View"]:::backend
+        Views["Thymeleaf Templates <br/> layout · home · profile · settings"]:::frontend
+        Services["Services <br/> User · Mail · Friendship · Group · GroupView · Expense"]:::backend
+        Persistence["JPA Entities & Repositories <br/> User · Friendship · Group · GroupMember <br/> Bill · ExpenseSplit · Settlement"]:::backend
+
+        Config -.->|"Secures & Advises"| Controllers
+        Controllers -->|"Renders (server-side)"| Views
         
-        Controllers -->|Renders| Views
-        Controllers <--> Services
-        Services <--> Repositories
+        Controllers <-->|"DTOs"| Services
+        Services <--> Persistence
     end
     
-    DB[("Relational Database <br/> (H2 / MySQL)")]:::database
+    Client <-->|"HTTP (dev)"| Controllers
+    Client <-->|"HTTPS (public)"| Ngrok
+    Ngrok <-->|"Forwards to localhost:8080"| Controllers
     
-    Client <-->|HTTP Requests| Controllers
-    Client <-->|HTML/CSS| Views
-    Repositories <-->|JDBC/Hibernate| DB
+    Services -->|"Verification email links (APP_BASE_URL)"| Ngrok
+    Services -->|"SMTP"| Gmail
+    Persistence <-->|"JDBC / Hibernate"| H2
+    Persistence <-->|"JDBC / Hibernate + SSL"| Supabase
 ```
 
 ## Features
