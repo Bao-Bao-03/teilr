@@ -40,3 +40,6 @@ build/
 
 # Environment Variables
 .env
+
+### Others ###
+.image/
