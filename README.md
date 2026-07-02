@@ -109,6 +109,27 @@ The application uses an in-memory H2 database by default. You do not need to ins
 Once started, the app will be accessible at: **[http://localhost:8080](http://localhost:8080)**.
 You can access the database console at `http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:mem:teilr`, Username: `sa`, Password: `[empty]`).
 
+### Exposing Locally with ngrok
+
+To test features that require a public URL (like email verification links), you can expose your local server using [ngrok](https://ngrok.com).
+
+**1. Installation & Authentication**
+- Install ngrok (e.g., via `snap install ngrok` on Linux, or download from their [website](https://ngrok.com/docs/guides/share-localhost/overview)).
+- Add your auth token from the ngrok dashboard:
+  ```bash
+  ngrok config add-authtoken YOUR_AUTHTOKEN
+  ```
+  *Note for Linux Snap users:* If you just installed snap and get a "command not found" error, use the absolute path until you restart your terminal: `/var/lib/snapd/snap/bin/ngrok config add-authtoken YOUR_AUTHTOKEN`.
+
+**2. Starting the Tunnel**
+Run the following command to expose your local port 8080:
+```bash
+ngrok http 8080
+```
+*(If using a free static domain: `ngrok http --domain=your-domain.ngrok-free.dev 8080`)*
+
+Copy the generated `https://*.ngrok-free.dev` URL and update the `APP_BASE_URL` in your `.env` file.
+
 ### Production Mode (MySQL)
 To run the application with a persistent MySQL database, configure your credentials in `src/main/resources/application-mysql.properties` and run with the `mysql` profile:
 
