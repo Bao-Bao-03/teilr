@@ -34,8 +34,8 @@ The project uses the following environment variables (example `.env`):
 MAIL_USERNAME=teilr.webapps@gmail.com
 MAIL_PASSWORD=your_gmail_app_password
 APP_BASE_URL=https://<random>.ngrok-free.dev
-DB_URL=jdbc:postgresql://db.<project>.supabase.co:5432/postgres?sslmode=require
-DB_USERNAME=postgres
+DB_URL=jdbc:postgresql://<your-pooler-domain>.pooler.supabase.com:5432/postgres?sslmode=require
+DB_USERNAME=postgres.<project>
 DB_PASSWORD=your_db_password
 DB_DIALECT=org.hibernate.dialect.PostgreSQLDialect
 ```
