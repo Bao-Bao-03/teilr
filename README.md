@@ -53,31 +53,23 @@ flowchart TD
     classDef external fill:#ede7f6,stroke:#673ab7,stroke-width:2px,stroke-dasharray:5 5;
 
     Client["Browser / Client"]:::frontend
-    Ngrok["ngrok Tunnel <br/> (Public HTTPS → localhost:8080)"]:::external
-    Gmail["Gmail SMTP"]:::external
-    H2[("H2 In-Memory <br/> (Dev)")]:::database
-    Supabase[("MySQL / Supabase PostgreSQL <br/> (Production)")]:::database
-
-    subgraph App ["Spring Boot Application (localhost:8080)"]
-        Config["Config & Security <br/> SecurityConfig · GlobalControllerAdvice · GlobalExceptionHandler"]:::config
-        Controllers["Controllers <br/> Auth · User · Friendship · Group · Expense · View"]:::backend
-        Views["Thymeleaf Templates <br/> layout · home · profile · settings"]:::frontend
-        Services["Services <br/> User · Mail · Friendship · Group · GroupView · Expense"]:::backend
-        Persistence["JPA Entities & Repositories <br/> User · Friendship · Group · GroupMember <br/> Bill · ExpenseSplit · Settlement"]:::backend
-
-        Config -.->|"Secures & Advises"| Controllers
-        Controllers -->|"Renders (server-side)"| Views
-        Controllers <-->|"DTOs"| Services
-        Services <--> Persistence
+    
+    subgraph Spring_Boot_Application ["Spring Boot Application"]
+        Controllers["Spring MVC Controllers <br/> (Auth, Users, Friendships, Groups)"]:::backend
+        Services["Business Logic Services <br/> (User, Mail, Friendship, Groups)"]:::backend
+        Repositories["Spring Data JPA Repositories"]:::backend
+        Views["Thymeleaf Templates"]:::frontend
+        
+        Controllers -->|Renders| Views
+        Controllers <--> Services
+        Services <--> Repositories
     end
-
-    Client <-->|"HTTP (dev)"| Controllers
-    Client <-->|"HTTPS (public)"| Ngrok
-    Ngrok <-->|"Forwards to localhost:8080"| Controllers
-    Services -->|"Verification email links (APP_BASE_URL)"| Ngrok
-    Services -->|"SMTP"| Gmail
-    Persistence <-->|"JDBC / Hibernate"| H2
-    Persistence <-->|"JDBC / Hibernate + SSL"| Supabase
+    
+    DB[("Relational Database <br/> (H2 / MySQL)")]:::database
+    
+    Client <-->|HTTP Requests| Controllers
+    Client <-->|HTML/CSS| Views
+    Repositories <-->|JDBC/Hibernate| DB
 ```
 
 ## Features
