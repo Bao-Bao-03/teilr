@@ -5,12 +5,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/**
- * Maps the service-layer exceptions to sensible HTTP statuses. Without this,
- * an unbalanced bill or an unauthorized settle would surface as a 500. HTMX
- * only swaps 2xx responses, so a clean 4xx simply leaves the UI unchanged
- * (and the browser console shows the reason).
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
