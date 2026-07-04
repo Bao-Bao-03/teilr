@@ -6,6 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface GroupRepository extends JpaRepository<Group, Long> {
-    // Basic CRUD inherited from JpaRepository (findById, save, delete, findAll, etc.)
-    // Add custom queries here as features grow.
+    
 }
