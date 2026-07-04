@@ -11,7 +11,6 @@ import java.util.List;
 @Repository
 public interface SettlementRepository extends JpaRepository<Settlement, Long> {
 
-    /** Newest-first activity trail for a group. */
     List<Settlement> findByGroupIdOrderByCreatedAtDesc(Long groupId);
 
     @Modifying
