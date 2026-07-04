@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/api/expenses")
-@CrossOrigin(origins = "*") // Cho phép Frontend gọi mà không bị lỗi CORS
+@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class ExpenseController {
 
@@ -44,23 +44,16 @@ public class ExpenseController {
     private final GroupService groupService;
     private final GroupViewService groupViewService;
 
-    // ============================================================
-    // REST endpoints (JSON) — kept for API.md compatibility
-    // ============================================================
-
-    // --- 1. API Lấy danh sách Hóa Đơn ---
     @GetMapping("/group/{groupId}/bills")
     public ResponseEntity<List<Bill>> getGroupBills(@PathVariable Long groupId) {
         return ResponseEntity.ok(expenseService.getBillsForGroup(groupId));
     }
 
-    // --- 2. API Xem "Ai nợ ai bao nhiêu tiền" ---
     @GetMapping("/group/{groupId}/simplified-debts")
     public ResponseEntity<List<SimplifiedDebtDTO>> getSimplifiedDebts(@PathVariable Long groupId) {
         return ResponseEntity.ok(expenseService.getSimplifiedDebts(groupId));
     }
 
-    // --- 3. API Tạo Hóa Đơn Chia Đều (Equal Split) ---
     @PostMapping("/bill")
     public ResponseEntity<Bill> createBill(@RequestBody BillCreateRequest request, HttpSession session) {
         Long userId = (Long) session.getAttribute("userId");
@@ -70,7 +63,6 @@ public class ExpenseController {
         return ResponseEntity.status(HttpStatus.CREATED).body(expenseService.createEqualBill(request));
     }
 
-    // --- 4. API Trả Nợ (Settle Up) — now records a confirmable settlement ---
     @PostMapping("/settle")
     public ResponseEntity<Void> settleUp(@RequestBody SettleUpRequest request, HttpSession session) {
         Long userId = (Long) session.getAttribute("userId");
@@ -80,15 +72,7 @@ public class ExpenseController {
                 request.getCreditorId(), request.getAmount(), userId);
         return ResponseEntity.ok().build();
     }
-
-    // ============================================================
-    // HTMX endpoints — return the refreshed group-detail scene
-    // ============================================================
-
-    /**
-     * Fair-split bill: total divided equally among the ticked participants.
-     * Called by: hx-post="/api/expenses/group/{groupId}/bill/equal"
-     */
+    
     @PostMapping("/group/{groupId}/bill/equal")
     public String createEqualBillForm(@PathVariable Long groupId,
                                       @RequestParam String description,
@@ -102,18 +86,12 @@ public class ExpenseController {
 
         List<Long> participants = (participantIds != null) ? participantIds : List.of();
         String participantNames = namesFor(groupId, participants);
-        // payerId is who fronted the money (any group member); validated in the service.
         expenseService.createEqualBill(groupId, payerId, description, totalAmount, participants, participantNames);
 
         model.addAllAttributes(groupViewService.build(groupId, userId));
         return GROUP_DETAIL;
     }
 
-    /**
-     * Detailed bill: per-participant shares supplied via parallel arrays
-     * splitUserId[] / splitAmount[]. The shares must sum to totalAmount.
-     * Called by: hx-post="/api/expenses/group/{groupId}/bill/detailed"
-     */
     @PostMapping("/group/{groupId}/bill/detailed")
     public String createDetailedBillForm(@PathVariable Long groupId,
                                          @RequestParam String description,
@@ -143,10 +121,6 @@ public class ExpenseController {
         return GROUP_DETAIL;
     }
 
-    /**
-     * Confirm a settlement (current user must be the debtor or creditor).
-     * Called by: hx-post="/api/expenses/group/{groupId}/settle"
-     */
     @PostMapping("/group/{groupId}/settle")
     public String settleForm(@PathVariable Long groupId,
                              @RequestParam Long debtorId,
@@ -160,18 +134,12 @@ public class ExpenseController {
         try {
             expenseService.confirmSettlement(groupId, debtorId, creditorId, amount, userId);
         } catch (IllegalStateException e) {
-            // This happens when 2 people click settle at the exact same time due to polling race conditions.
-            // We just ignore the duplicate request and safely return the latest valid state below.
         }
 
         model.addAllAttributes(groupViewService.build(groupId, userId));
         return GROUP_DETAIL;
     }
 
-    /**
-     * Revert a settlement (only the receiver / creditor may do this).
-     * Called by: hx-post="/api/expenses/group/{groupId}/settle/{settlementId}/revert"
-     */
     @PostMapping("/group/{groupId}/settle/{settlementId}/revert")
     public String revertForm(@PathVariable Long groupId,
                              @PathVariable Long settlementId,
@@ -185,7 +153,6 @@ public class ExpenseController {
         return GROUP_DETAIL;
     }
 
-    /** Comma-separated usernames for the given member ids, for the bill card label. */
     private String namesFor(Long groupId, List<Long> userIds) {
         Map<Long, String> names = groupService.getMembersOfGroup(groupId).stream()
                 .collect(Collectors.toMap(User::getId, User::getUsername, (a, b) -> a));
