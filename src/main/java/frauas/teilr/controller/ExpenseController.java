@@ -59,7 +59,7 @@ public class ExpenseController {
         Long userId = (Long) session.getAttribute("userId");
         if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
-        request.setCreatorId(userId); // Enforce current user as creator
+        request.setCreatorId(userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(expenseService.createEqualBill(request));
     }
 
