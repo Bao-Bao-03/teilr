@@ -66,7 +66,7 @@ public class FriendshipController {
 
         return ResponseEntity.ok(friendship);
     }
-
+    
     @PostMapping("/accept")
     public ResponseEntity<Friendship> acceptRequest(@RequestParam Long friendshipId,
                                                     HttpSession session) {
