@@ -28,7 +28,6 @@ public class GlobalControllerAdvice {
         Long userId = (Long) session.getAttribute("userId");
         User user;
         if (userId == null) {
-            // auth.getName() is the email (the principal's username).
             user = userService.findByEmail(auth.getName()).orElse(null);
             if (user != null) {
                 session.setAttribute("userId", user.getId());
