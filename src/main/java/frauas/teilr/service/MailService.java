@@ -34,10 +34,6 @@ public class MailService {
         }
     }
 
-    /**
-     * Send the verification link to a freshly registered user. If no SMTP is
-     * configured the link is logged so development still works.
-     */
     public void sendVerificationEmail(String toEmail, String username, String token) {
         String link = baseUrl + "/auth/verify?token=" + token;
         String body = """
