@@ -50,7 +50,6 @@ public class ExpenseService {
             throw new IllegalArgumentException("Bill must have at least one participant");
         }
 
-        // --- VALIDATION: NGƯỜI DÙNG CÓ TRONG NHÓM KHÔNG? ---
         List<GroupMember> groupMembers = groupMemberRepository.findByGroupId(groupId);
         Set<Long> validMemberIds = groupMembers.stream()
                 .map(GroupMember::getUserId)
@@ -74,29 +73,24 @@ public class ExpenseService {
         bill.setParticipantNames(participantNames);
         Bill savedBill = billRepository.save(bill);
 
-        // 2. Tính toán số tiền mỗi người phải chịu
         int numPeople = participantIds.size();
         BigDecimal divisor = new BigDecimal(numPeople);
-        // Chia lấy phần nguyên (vd: 100 / 3 = 33.33)
+
         BigDecimal baseOwed = totalAmount.divide(divisor, 2, RoundingMode.DOWN);
-        // Tính tiền dư (vd: 100 - (33.33 * 3) = 0.01)
+
         BigDecimal remainder = totalAmount.subtract(baseOwed.multiply(divisor));
 
-        // 3. Cập nhật "Sổ tổng nợ" cho NGƯỜI TRẢ TIỀN (Creator)
+
         ExpenseSplit creatorSplit = getOrCreateExpenseSplit(creatorId, groupId);
         creatorSplit.setTotalPaid(creatorSplit.getTotalPaid().add(totalAmount));
         expenseSplitRepository.save(creatorSplit);
 
-        // 4. Cập nhật "Sổ tổng nợ" cho NHỮNG NGƯỜI THAM GIA (Bao gồm cả Creator nếu ăn
-        // chung)
-        // tinh nang chon ng than gia chua?
         List<ExpenseSplit> toSave = new ArrayList<>();
         for (int i = 0; i < participantIds.size(); i++) {
             Long participantId = participantIds.get(i);
             ExpenseSplit participantSplit = getOrCreateExpenseSplit(participantId, groupId);
 
             BigDecimal amountToOwe = baseOwed;
-            // Ép người đầu tiên trong mảng gánh cục tiền lẻ (remainder)
             if (i == 0) {
                 amountToOwe = amountToOwe.add(remainder);
             }
@@ -104,17 +98,11 @@ public class ExpenseService {
             participantSplit.setTotalOwed(participantSplit.getTotalOwed().add(amountToOwe));
             toSave.add(participantSplit);
         }
-        // A group of 10 people = 10 sequential DB round-trips per bill. saveAll()
-        // batches them into one
+
         expenseSplitRepository.saveAll(toSave);
         return savedBill;
     }
 
-    /**
-     * Create a bill with custom per-participant shares (the "detailed" mode).
-     * One payer fronts the whole total; each participant owes the amount typed for
-     * them. The sum of the shares must equal the total to the cent.
-     */
     @Transactional
     public Bill createDetailedBill(Long groupId, Long creatorId, String description,
                                    BigDecimal totalAmount, Map<Long, BigDecimal> shares,
@@ -127,7 +115,6 @@ public class ExpenseService {
             throw new IllegalArgumentException("Bill must have at least one participant");
         }
 
-        // Validate membership of payer + all participants.
         Set<Long> validMemberIds = groupMemberRepository.findByGroupId(groupId).stream()
                 .map(GroupMember::getUserId)
                 .collect(Collectors.toSet());
@@ -158,12 +145,10 @@ public class ExpenseService {
         bill.setParticipantNames(participantNames);
         Bill savedBill = billRepository.save(bill);
 
-        // Payer fronted the whole total.
         ExpenseSplit creatorSplit = getOrCreateExpenseSplit(creatorId, groupId);
         creatorSplit.setTotalPaid(creatorSplit.getTotalPaid().add(totalAmount));
         expenseSplitRepository.save(creatorSplit);
 
-        // Each participant owes their typed share.
         List<ExpenseSplit> toSave = new ArrayList<>();
         for (Map.Entry<Long, BigDecimal> e : shares.entrySet()) {
             ExpenseSplit s = getOrCreateExpenseSplit(e.getKey(), groupId);
@@ -175,13 +160,6 @@ public class ExpenseService {
         return savedBill;
     }
 
-    // --- SETTLEMENTS (confirm / revert + activity trail) ---
-
-    /**
-     * Record a confirmed settlement: {@code debtorId} pays {@code creditorId}
-     * {@code amount}. Either party may confirm. Adjusts balances the same way a
-     * settle-up bill would (debtor totalPaid +=, creditor totalOwed +=).
-     */
     @Transactional
     public Settlement confirmSettlement(Long groupId, Long debtorId, Long creditorId,
                                         BigDecimal amount, Long byUserId) {
@@ -195,13 +173,10 @@ public class ExpenseService {
             throw new SecurityException("Only the debtor or creditor can confirm this settlement");
         }
 
-        // --- VALIDATION: RACE CONDITION PREVENTION ---
-        // Ensure the debtor actually owes the creditor at least the requested amount.
         List<SimplifiedDebtDTO> currentDebts = getSimplifiedDebts(groupId);
         boolean isValidDebt = false;
         for (SimplifiedDebtDTO d : currentDebts) {
             if (d.getDebtorId().equals(debtorId) && d.getCreditorId().equals(creditorId)) {
-                // To prevent double-settlement race conditions, ensure the debt covers the settled amount
                 if (d.getAmount().compareTo(amount) >= 0) {
                     isValidDebt = true;
                     break;
@@ -226,11 +201,6 @@ public class ExpenseService {
         return settlement;
     }
 
-    /**
-     * Revert a previously confirmed settlement. Either party (the payer/debtor or
-     * the receiver/creditor) may revert it. The row is kept, marked REVERTED, so
-     * the trail stays complete.
-     */
     @Transactional
     public Settlement revertSettlement(Long settlementId, Long byUserId) {
         Settlement settlement = settlementRepository.findById(settlementId)
@@ -243,7 +213,6 @@ public class ExpenseService {
             throw new SecurityException("Only the payer or receiver can revert this settlement");
         }
 
-        // Reverse the original balance adjustment.
         applyBalance(settlement.getCreditorId(), settlement.getDebtorId(),
                 settlement.getGroupId(), settlement.getAmount());
 
@@ -252,12 +221,10 @@ public class ExpenseService {
         return settlement;
     }
 
-    /** Newest-first settlement trail for a group. */
     public List<Settlement> getActivity(Long groupId) {
         return settlementRepository.findByGroupIdOrderByCreatedAtDesc(groupId);
     }
 
-    /** Debtor's debt shrinks (paid +=), creditor's credit shrinks (owed +=). */
     private void applyBalance(Long debtorId, Long creditorId, Long groupId, BigDecimal amount) {
         ExpenseSplit debtorSplit = getOrCreateExpenseSplit(debtorId, groupId);
         debtorSplit.setTotalPaid(debtorSplit.getTotalPaid().add(amount));
@@ -267,7 +234,6 @@ public class ExpenseService {
         expenseSplitRepository.save(creditorSplit);
     }
 
-    // --- 2. THUẬT TOÁN GOM NỢ TỐI ƯU (SIMPLIFY DEBTS) ---
     private static class BalanceCalc {
         Long userId;
         BigDecimal balance;
@@ -281,42 +247,32 @@ public class ExpenseService {
     public List<SimplifiedDebtDTO> getSimplifiedDebts(Long groupId) {
         List<ExpenseSplit> allSplits = expenseSplitRepository.findByGroupId(groupId);
 
-        // Chia làm 2 phe: Chủ Nợ (>0) là true, phần còn lại (<=0) là false
         Map<Boolean, List<ExpenseSplit>> split = allSplits.stream()
             .collect(Collectors.partitioningBy(s -> s.getBalance().compareTo(BigDecimal.ZERO) > 0));
 
-        // Phe Chủ Nợ (Balance > 0)
         List<BalanceCalc> creditors = split.get(true).stream()
             .map(s -> new BalanceCalc(s.getUserId(), s.getBalance()))
             .toList();
 
-        // Phe Con Nợ (Lọc bỏ số 0 nếu có, lấy < 0) và đổi dấu thành số dương để dễ tính toán
         List<BalanceCalc> debtors = split.get(false).stream()
             .filter(s -> s.getBalance().compareTo(BigDecimal.ZERO) < 0)
             .map(s -> new BalanceCalc(s.getUserId(), s.getBalance().abs()))
             .toList();
 
         List<SimplifiedDebtDTO> simplifiedDebts = new ArrayList<>();
-        int i = 0; // Con trỏ của list Con Nợ
-        int j = 0; // Con trỏ của list Chủ Nợ
-
+        int i = 0;
+        int j = 0; 
         while (i < debtors.size() && j < creditors.size()) {
             BalanceCalc debtor = debtors.get(i);
             BalanceCalc creditor = creditors.get(j);
 
-            // Tìm số tiền có thể cấn trừ ngay lập tức (Lấy số nhỏ hơn)
             BigDecimal minAmount = debtor.balance.min(creditor.balance);
 
-            // Thêm vào danh sách kết quả trả về
             simplifiedDebts.add(new SimplifiedDebtDTO(debtor.userId, creditor.userId, minAmount));
 
-            // Trừ dần tiền nợ ảo trong vòng lặp (Với class giả lập, an toàn không dính OSIV
-            // bug)
             debtor.balance = debtor.balance.subtract(minAmount);
             creditor.balance = creditor.balance.subtract(minAmount);
 
-            // Nếu ai đã thanh toán xong phần của mình thì nhích con trỏ sang người tiếp
-            // theo
             if (debtor.balance.compareTo(BigDecimal.ZERO) == 0) i++;
             if (creditor.balance.compareTo(BigDecimal.ZERO) == 0) j++;
         }
@@ -324,14 +280,10 @@ public class ExpenseService {
         return simplifiedDebts;
     }
 
-    // --- HÀM TIỆN ÍCH BỔ TRỢ ---
-
-    // Lấy danh sách Bill để hiện ra UI
     public List<Bill> getBillsForGroup(Long groupId) {
         return billRepository.findByGroupId(groupId);
     }
 
-    // Hàm kiểm tra: Nếu User chưa có trong sổ nợ thì tạo dòng mới với số dư = 0
     private ExpenseSplit getOrCreateExpenseSplit(Long userId, Long groupId) {
         return expenseSplitRepository.findByUserIdAndGroupId(userId, groupId)
                 .orElseGet(() -> {
