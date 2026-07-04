@@ -28,10 +28,6 @@ public class GroupService {
     private final SettlementRepository settlementRepository;
     private final FriendshipService friendshipService;
 
-    /**
-     * Create a new group. The creator becomes admin and is added as the first
-     * member.
-     */
     public Group createGroup(String name, Long adminId, List<Long> memIds) {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Group name cannot be empty.");
@@ -66,7 +62,6 @@ public class GroupService {
         if (!userRepository.existsById(userId)) {
             throw new IllegalArgumentException("User with ID " + userId + " does not exist.");
         }
-        // You can only add people you are friends with (the admin adding themselves is fine).
         if (!friendshipService.areFriends(requesterId, userId)) {
             throw new SecurityException("You can only add friends to a group.");
         }
@@ -97,12 +92,6 @@ public class GroupService {
         return userRepository.findAllById(userIds);
     }
 
-    /**
-     * Delete a group — admin only.
-     *
-     * @throws IllegalArgumentException if the group does not exist
-     * @throws SecurityException        if the requester is not the admin
-     */
     @Transactional
     public void deleteGroup(Long groupId, Long requestedId) {
         Group group = groupRepository.findById(groupId)
