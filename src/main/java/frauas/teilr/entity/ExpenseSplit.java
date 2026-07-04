@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 
 @Entity
 @Table(name = "expense_splits", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"user_id", "group_id"}) // chỉ có đúng 1 cặp user_id và group_id trog db 
+    @UniqueConstraint(columnNames = {"user_id", "group_id"})
 })
 @Data
 @NoArgsConstructor
@@ -23,10 +23,10 @@ public class ExpenseSplit {
     private Long groupId;
 
     @Column(precision = 10, scale = 2) 
-    private BigDecimal totalOwed = BigDecimal.ZERO; // owed là số tiền mình nợ
+    private BigDecimal totalOwed = BigDecimal.ZERO;
     
     @Column(precision = 10, scale = 2)
-    private BigDecimal totalPaid = BigDecimal.ZERO; //paid là tiền mình trả 
+    private BigDecimal totalPaid = BigDecimal.ZERO;
 
     public BigDecimal getBalance() {
         return this.totalPaid.subtract(this.totalOwed);
