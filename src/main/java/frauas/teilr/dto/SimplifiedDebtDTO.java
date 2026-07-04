@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 @Data
 @AllArgsConstructor
 public class SimplifiedDebtDTO {
-    private Long debtorId;   // ID Người nợ
-    private Long creditorId; // ID Chủ nợ
-    private BigDecimal amount; // Số tiền phải trả
+    private Long debtorId;
+    private Long creditorId;
+    private BigDecimal amount; 
 }
