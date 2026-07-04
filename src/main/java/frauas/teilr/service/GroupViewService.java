@@ -16,11 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Assembles everything the {@code group-detail} scene needs into one model map,
- * so both {@code GroupController} (view / add-member) and {@code ExpenseController}
- * (bill / settle / revert) can re-render the same screen after a mutation.
- */
 @Service
 @RequiredArgsConstructor
 public class GroupViewService {
@@ -30,11 +25,6 @@ public class GroupViewService {
     private final GroupMemberRepository groupMemberRepository;
     private final FriendshipService friendshipService;
 
-    /**
-     * @param groupId     the group to render
-     * @param requesterId the logged-in user — must be a member
-     * @throws SecurityException if the requester is not a member of the group
-     */
     public Map<String, Object> build(Long groupId, Long requesterId) {
         Group group = groupService.findGroupById(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("Group not found: " + groupId));
@@ -57,7 +47,6 @@ public class GroupViewService {
 
         boolean isAdmin = group.getAdminId() != null && group.getAdminId().equals(requesterId);
 
-        // For the admin: friends who aren't already in the group (only friends can be added).
         List<User> addableFriends = List.of();
         if (isAdmin) {
             java.util.Set<Long> memberIds = members.stream().map(User::getId).collect(Collectors.toSet());
