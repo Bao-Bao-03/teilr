@@ -11,19 +11,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
-/**
- * Bridges Spring Security and the session-based controllers.
- *
- * <p>Form login authenticates by email (see {@code UserService.loadUserByUsername}),
- * but every controller reads {@code session.getAttribute("userId")}. Nothing else
- * populates that attribute, so without this advice the first authenticated request
- * would always see {@code userId == null}.
- *
- * <p>This {@code @ModelAttribute} method runs before every controller handler. When
- * the request is authenticated it ensures {@code session.userId} is set and exposes
- * the resolved {@link User} as {@code currentUser} for templates (shell greeting,
- * profile page, etc.).
- */
 @ControllerAdvice
 @RequiredArgsConstructor
 public class GlobalControllerAdvice {
